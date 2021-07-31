@@ -36,7 +36,8 @@
            get-event-hook
            set-event-hook
            printf
-           with-default-rl))
+           with-default-rl
+           setup))
 
 (in-package readline)
 
@@ -582,46 +583,48 @@
         (write-history *history-file*)) 
       sb-ext:*exit-hooks*)
 
-(handler-bind ((sb-ext:symbol-package-locked-error
-                 (lambda (c) 
-                   (declare (ignorable c)) 
-                   (invoke-restart 'continue))))
-  (macrolet ((describe-readline-reader (buffer input output ps1 ps2 on-eof)
-               `(if ,buffer
-                  (pop ,buffer)
-                  (let ((*standard-input*  ,input)
-                        (*standard-output* ,output)
-                        (eof '#:eof))
-                    (loop
-                      (let ((result (multiple-value-list
+(defun setup ()
+  (setf *rl-readline-name* "Sbcl")
+  (handler-bind ((sb-ext:symbol-package-locked-error
+                   (lambda (c)
+                     (declare (ignorable c))
+                     (invoke-restart 'continue))))
+    (macrolet ((describe-readline-reader (buffer input output ps1 ps2 on-eof)
+                 `(if ,buffer
+                    (pop ,buffer)
+                    (let ((*standard-input*  ,input)
+                         (*standard-output* ,output)
+                         (eof '#:eof))
+                      (loop
+                        (let ((result (multiple-value-list
                                       (readline-lisp :ps1 ,ps1
-                                                     :ps2 ,ps2
-                                                     :eof-value eof))))
-                        (cond ((eq (car result) eof) 
-                               (terpri)
-                               ,on-eof)
-                              (result
-                                (setf ,buffer (cdr result))
-                                (return (car result))))))))))
-    (setf sb-int:*repl-prompt-fun* 
-          (lambda (input) 
-            (declare (ignorable input))
-            (fresh-line))
-          sb-int:*repl-read-form-fun*
-          (let (buffer)
-            (lambda (input output)
-              (describe-readline-reader 
-                buffer input output *ps1* *ps2* (funcall *eof-action*))))
-          (symbol-function 'sb-debug::debug-prompt)
-          (lambda (stream)
-            (sb-thread::get-foreground)
-            (fresh-line stream))
-          (symbol-function 'sb-debug::debug-read)
-          (let (buffer)
-            (lambda (stream eof-restart)
-              (describe-readline-reader
-                buffer stream stream *debug-ps1* *debug-ps2*
-                (invoke-restart eof-restart)))))))
+                                        :ps2 ,ps2
+                                        :eof-value eof))))
+                          (cond ((eq (car result) eof)
+                                  (terpri)
+                                  ,on-eof)
+                            (result
+                              (setf ,buffer (cdr result))
+                              (return (car result))))))))))
+      (setf sb-int:*repl-prompt-fun*
+        (lambda (input)
+          (declare (ignorable input))
+          (fresh-line))
+        sb-int:*repl-read-form-fun*
+        (let (buffer)
+          (lambda (input output)
+            (describe-readline-reader
+              buffer input output *ps1* *ps2* (funcall *eof-action*))))
+        (symbol-function 'sb-debug::debug-prompt)
+        (lambda (stream)
+          (sb-thread::get-foreground)
+          (fresh-line stream))
+        (symbol-function 'sb-debug::debug-read)
+        (let (buffer)
+          (lambda (stream eof-restart)
+            (describe-readline-reader
+              buffer stream stream *debug-ps1* *debug-ps2*
+              (invoke-restart eof-restart))))))))
 
 (defun set-event-hook (function)
   "Call the function periodically when Readline is waiting for terminal input. By default, this will be called at most ten times a second if there is no keyboard input. NIL removes the hook."
