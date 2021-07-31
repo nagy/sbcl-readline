@@ -126,6 +126,7 @@
 (cffi:defcvar "rl_point"                           :int)
 (cffi:defcvar "rl_prompt"                          :pointer)
 (cffi:defcvar "rl_readline_state"                  :int)
+(cffi:defcvar "rl_readline_name"                   :string)
 
 ; taken from /usr/include/readline/readline.h
 (cffi:defcenum state
